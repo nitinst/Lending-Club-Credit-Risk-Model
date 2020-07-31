@@ -1,1 +1,1 @@
-# Lending-club-credit-risk-model
+# Credit-Risk-Model
