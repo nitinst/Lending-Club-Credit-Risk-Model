@@ -17,6 +17,14 @@ knit: (function(input_file, encoding) { out_dir <- 'docs'; rmarkdown::render(inp
 geometry: margin=0.5in
 ---
 
+<style type="text/css">
+.main-container {
+  max-width: 1800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
 \hypersetup{linkcolor=black}
 \setcounter{tocdepth}{3}
 \tableofcontents
@@ -48,7 +56,7 @@ library(caret)
 library(ggplot2)
 library(data.table)
 library(knitr)
-loan_data <- fread("C:\\Asus WebStorage\\nitin.7785@gmail.com\\MySyncFolder\\Credit_Risk_Modelling\\Credit-Risk-Model\\publish_git\\Credit-Risk-Model\\lc_loan.csv")
+loan_data <- fread("C:\\Asus WebStorage\\nitin.7785@gmail.com\\MySyncFolder\\Credit_Risk_Modelling\\Credit-Risk-Model\\publish_git\\data\\lc_loan.csv")
 ```
 
 Our data has following columns,
