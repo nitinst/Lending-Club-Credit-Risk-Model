@@ -1,14 +1,11 @@
 ---
 title: "Credit Risk Modelling"
 author: "Nitin Tiwari"
-date: "7/27/2020"
 output:
   html_document:
     df_print: paged
-  geometry: margin=1cm
-  df_print: paged
-  toc: true
-  toc_depth: 3
+    toc: true
+    toc_depth: 3
   number_sections: yes
   theme: united
 knit: (function(input_file, encoding) { out_dir <- 'docs'; rmarkdown::render(input_file,
@@ -32,7 +29,7 @@ geometry: margin=0.5in
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Project Description
+# Project Description
 
 In this project we will model lending club data available at: <https://www.kaggle.com/husainsb/lendingclub-issued-loans#lc_loan.csv>
 We start with a data between 2007-2015. We will first analyse features, calculate Weight of Evidence and Information Value. Based on that, we will use Generalised logistic regression to calculate probability of default, and finally use coefficients of logistic regression to generate a credit score card.
@@ -41,7 +38,7 @@ We will also validate the performance of our predictions. After that, we will pr
 
 Next, we use the data for 2016-2017 and treat it as a new data that needs to be integrated with our model. However, before we can do that we have to quantify how similar/dissimilar new data is from existing data. We will do this via Population Stability Index(PSI).
 
-## Pre-process input data
+# Pre-process input data
 Let us start by loading data and dropping all columns with all the values missing, as these columns are of no use anyways.
 
 ```{r message=FALSE, warning=FALSE}
@@ -270,7 +267,7 @@ plot_woe_continuous <- function(plot_data, x_axis, x_label, y_scale) {
 }
 ```
 
-## Feature engineering
+# Feature engineering
 
 Lets start inspecting WoE of features and categorize them accordingly. However, before we start feature inspection, we initialize a dataframe to keep track of Information Value of each feature to be able to identify redundant features based on their respective IV.
 ```{r message=FALSE, warning=FALSE}
@@ -278,7 +275,7 @@ IV_df <- data.frame(matrix(ncol = 2, nrow = 0))
 colnames(IV_df) <- c('WoE_col', 'IV_value')
 ```
 
-# `grade`
+## `grade`
 We are all set to explore and engineer features, lets start with `grade`. As can be seen in WoE plot, there are not that many grades and the grades when arranged in ascending order of their WoE have a clear linear trend. It makes sense to preserve all grades categories.
 ```{r message=FALSE, warning=FALSE}
 grade_woe <- calculate_weight_of_evidence_discrete(train_data, "grade", "good_bad")
@@ -287,7 +284,7 @@ plot_woe_discrete(grade_woe, 'grade', 'Grade', 1, 0)
 train_data$grade_trnsfrmd <- train_data$grade
 ```
 
-# `home_ownership`
+## `home_ownership`
 Next we examine `home_ownership`.
 ```{r message=FALSE, warning=FALSE}
 distinct(train_data, home_ownership)
@@ -305,7 +302,7 @@ plot_woe_discrete(home_ownership_woe %>% slice(3:n()), 'home_ownership', 'Home O
 ```
 In general, this is the principle that will be followed to decide on categories for PD modelling. Below, we will repeat these steps for all the other features of the input data. From here onwards, we proceed with all other feature categorisation without additional explanation as the basic rational of selecting categories has been explained above.
 
-# `addr_state`
+## `addr_state`
 ```{r message=FALSE, warning=FALSE}
 state_woe <- calculate_weight_of_evidence_discrete(train_data, "addr_state", "good_bad")
 IV_df[nrow(IV_df) + 1,] <- list("addr_state", distinct(state_woe, IV))
@@ -340,7 +337,7 @@ train_data$addr_state_trnsfrmd <- ifelse(train_data$addr_state %in% state1, "sta
 
 ```
 
-# `verification_status`
+## `verification_status`
 ```{r message=FALSE, warning=FALSE}
 verification_status_woe <- calculate_weight_of_evidence_discrete(train_data, "verification_status", "good_bad")
 IV_df[nrow(IV_df) + 1,] <- list("verification_status", distinct(verification_status_woe, IV))
@@ -351,7 +348,7 @@ train_data$verification_status_trnsfrmd <- ifelse(train_data$verification_status
                                                   train_data$verification_status)
 ```
 
-# `purpose`
+## `purpose`
 ```{r message=FALSE, warning=FALSE}
 purpose_woe <- calculate_weight_of_evidence_discrete(train_data, "purpose", "good_bad")
 IV_df[nrow(IV_df) + 1,] <- list("purpose", distinct(purpose_woe, IV))
@@ -366,7 +363,7 @@ train_data$purpose_trnsfrmd <- ifelse(train_data$purpose %in% purpose1, "purpose
                                   ifelse(train_data$purpose %in% purpose4, "purpose_list_4", NaN))))
 ```
 
-# `initial_list_status`
+## `initial_list_status`
 ```{r message=FALSE, warning=FALSE}
 init_list_status_woe <- calculate_weight_of_evidence_discrete(train_data, "initial_list_status", "good_bad")
 IV_df[nrow(IV_df) + 1,] <- list("initial_list_status", distinct(init_list_status_woe, IV))
@@ -374,7 +371,7 @@ plot_woe_discrete(init_list_status_woe, 'initial_list_status', 'Initial List Sta
 train_data$initial_list_status_trnsfrmd <- train_data$initial_list_status
 ```
 
-# `term_int`
+## `term_int`
 ```{r message=FALSE, warning=FALSE}
 term_int_woe <- calculate_weight_of_evidence_continuous(train_data, 'term_int', 'good_bad')
 IV_df[nrow(IV_df) + 1,] <- list("term_int", distinct(term_int_woe, IV))
@@ -383,7 +380,7 @@ train_data$term_int_trnsfrmd <- ifelse(train_data$term_int == 36, 'term_36',
                                        ifelse(train_data$term_int == 60, 'term_60', NaN))
 ```
 
-# `emp_length_int`
+## `emp_length_int`
 ```{r message=FALSE, warning=FALSE}
 emp_length_int_woe <- calculate_weight_of_evidence_continuous(train_data, 'emp_length_int', 'good_bad')
 IV_df[nrow(IV_df) + 1,] <- list("emp_length_int", distinct(emp_length_int_woe, IV))
@@ -395,7 +392,7 @@ train_data$emp_length_int_trnsfrmd <- ifelse(train_data$emp_length_int %in% c(0)
                                             'emp_length_10'))))
 ```
 
-# `mths_since_issue_d`
+## `mths_since_issue_d`
 ```{r message=FALSE, warning=FALSE}
 mths_since_issue_d_woe <- calculate_weight_of_evidence_continuous(train_data, 'mths_since_issue_d', 'good_bad')
 IV_df[nrow(IV_df) + 1,] <- list("mths_since_issue_d", distinct(mths_since_issue_d_woe, IV))
@@ -407,7 +404,7 @@ train_data$mths_since_issue_d_trnsfrmd <- ifelse(train_data$mths_since_issue_d <
 
 ```
 
-# `int_rate_factor`
+## `int_rate_factor`
 ```{r message=FALSE, warning=FALSE}
 train_data <- train_data %>%
   arrange(int_rate)
@@ -422,7 +419,7 @@ train_data$int_rate_factor_trnsfrmd <- ifelse(train_data$int_rate <= 9.548, 'int
                                             ifelse(train_data$int_rate >20.281, 'int_rate>20.281',NaN)))))
 ```
 
-# `funded_amnt_factor`
+## `funded_amnt_factor`
 ```{r message=FALSE, warning=FALSE}
 train_data$funded_amnt_factor <- cut(train_data$funded_amnt, 50)
 funded_amnt_factor_woe <- calculate_weight_of_evidence_continuous(train_data, 'funded_amnt_factor', 'good_bad')
@@ -437,7 +434,7 @@ train_data$funded_amnt_factor_trnsfrmd <- ifelse(train_data$funded_amnt <= 1000,
                                               NaN))))))))
 ```
 
-# `mths_since_earliest_cr_line_factor`
+## `mths_since_earliest_cr_line_factor`
 ```{r message=FALSE, warning=FALSE}
 train_data <- train_data %>%
   arrange(mths_since_earliest_cr_line)
@@ -454,7 +451,7 @@ train_data$mths_since_earliest_cr_line_factor_trnsfrmd <- ifelse(train_data$mths
                                                           NaN))))))
 ```
 
-# `delinq_2yrs`
+## `delinq_2yrs`
 ```{r message=FALSE, warning=FALSE}
 delinq_2yrs_woe <- calculate_weight_of_evidence_continuous(train_data, 'delinq_2yrs', 'good_bad')
 IV_df[nrow(IV_df) + 1,] <- list("delinq_2yrs", distinct(delinq_2yrs_woe, IV))
@@ -466,7 +463,7 @@ train_data$delinq_2yrs_trnsfrmd <- ifelse(train_data$delinq_2yrs == 0, 'delinq_2
                                              NaN))))
 ```
 
-# `inq_last_6mths`
+## `inq_last_6mths`
 ```{r message=FALSE, warning=FALSE}
 inq_last_6mths_woe <- calculate_weight_of_evidence_continuous(train_data, 'inq_last_6mths', 'good_bad')
 IV_df[nrow(IV_df) + 1,] <- list("inq_last_mths", distinct(inq_last_6mths_woe, IV))
@@ -479,7 +476,7 @@ train_data$inq_last_6mths_trnsfrmd <- ifelse(train_data$inq_last_6mths == 0, 'in
                                                  NaN)))))
 ```
 
-# `open_acc`
+## `open_acc`
 ```{r message=FALSE, warning=FALSE}
 open_acc_woe <- calculate_weight_of_evidence_continuous(train_data, 'open_acc', 'good_bad')
 IV_df[nrow(IV_df) + 1,] <- list("open_acc", distinct(open_acc_woe, IV))
@@ -495,7 +492,7 @@ train_data$open_acc_trnsfrmd <- ifelse(train_data$open_acc %in% c(0,1,2,3,seq(21
                                              NaN)))))))
 ```
 
-# `pub_rec`
+## `pub_rec`
 ```{r message=FALSE, warning=FALSE}
 pub_rec_woe <- calculate_weight_of_evidence_continuous(train_data, 'pub_rec', 'good_bad')
 IV_df[nrow(IV_df) + 1,] <- list("pub_rec", distinct(pub_rec_woe, IV))
@@ -507,7 +504,7 @@ train_data$pub_rec_trnsfrmd <- ifelse(train_data$pub_rec == 0, 'pub_rec=0',
                                          NaN))))
 ```
 
-# `total_acc_factor`
+## `total_acc_factor`
 ```{r message=FALSE, warning=FALSE}
 train_data <- train_data %>%
   arrange(total_acc)
@@ -522,7 +519,7 @@ train_data$total_acc_factor_trnsfrmd <- ifelse(train_data$total_acc <= 10, 'tota
                                                    NaN))))
 ```
 
-# `acc_now_delinq`
+## `acc_now_delinq`
 ```{r message=FALSE, warning=FALSE}
 acc_now_delinq_woe <- calculate_weight_of_evidence_continuous(train_data, 'acc_now_delinq', 'good_bad')
 IV_df[nrow(IV_df) + 1,] <- list("acc_now_delinq", distinct(acc_now_delinq_woe, IV))
@@ -532,7 +529,7 @@ train_data$acc_now_delinq_trnsfrmd <- ifelse(train_data$acc_now_delinq == 0, 'ac
                                               NaN))
 ```
 
-# `total_rev_hi_lim_factor`
+## `total_rev_hi_lim_factor`
 ```{r message=FALSE, warning=FALSE}
 train_data <- train_data %>%
   arrange(total_rev_hi_lim)
@@ -551,7 +548,7 @@ train_data$total_rev_hi_lim_factor_trnsfrmd <- ifelse(train_data$total_rev_hi_li
                                                       NaN))))))))
 ```
 
-# `installment_factor`
+## `installment_factor`
 ```{r message=FALSE, warning=FALSE}
 train_data <- train_data %>% arrange(installment)
 train_data$installment_factor <- cut(train_data$installment, 100)
@@ -571,7 +568,7 @@ train_data$installment_factor_trnsfrmd <- ifelse(train_data$installment <= 30, '
 
 ```
 
-# `annual_inc_factor`
+## `annual_inc_factor`
 ```{r message=FALSE, warning=FALSE}
 train_data <- train_data %>% arrange(annual_inc)
 train_data_temp <- train_data %>%
@@ -595,7 +592,7 @@ train_data$annual_inc_factor_trnsfrmd <- ifelse(train_data$annual_inc <= 20000, 
                                                           NaN))))))))))))
 ```
 
-# `mths_since_last_delinq_factor`
+## `mths_since_last_delinq_factor`
 ```{r message=FALSE, warning=FALSE}
 train_data <- train_data %>%
   arrange(mths_since_last_delinq)
@@ -638,7 +635,7 @@ train_data$dti_factor_trnsfrmd <- ifelse(train_data$dti <= 1, 'dti:<1',
                                                     NaN))))))))))))
 ```
 
-# `mths_since_last_record_factor`
+## `mths_since_last_record_factor`
 ```{r message=FALSE, warning=FALSE}
 train_data <- train_data %>%
   arrange(mths_since_last_record)
@@ -666,7 +663,7 @@ train_data_trnsfrmd <- train_data %>%
   select(ends_with(c('good_bad', 'trnsfrmd')))
 ```
 
-## Preparing test data
+# Preparing test data
 Using exactly the same categories, we transform test data for later to measure the performance of our PD model.
 ```{r message=FALSE, warning=FALSE}
 test_data$grade_trnsfrmd <- test_data$grade
@@ -864,7 +861,7 @@ test_data_trnsfrmd <- test_data %>%
 
 ```
 
-## Logistic Regression
+# Logistic Regression
 We have finally prepared our train and test data for model fitting, but before we proceed with fitting, we inspect IV table and check for variables that have extremely low IV. These variables then can be removed as they are redundant and have very low or no predictive capability. Following is our table of IV"
 ```{r message=FALSE, warning=FALSE}
 library(knitr)
@@ -890,18 +887,15 @@ train_data_trnsfrmd <- train_data_trnsfrmd %>%
 test_data_trnsfrmd <- test_data_trnsfrmd %>%
   select(-contains(pull(IV_df %>% filter(IV_value < 0.01) %>% select(WoE_col))))
 
-glimpse(train_data_trnsfrmd)
 train_data_trnsfrmd <- train_data_trnsfrmd %>% mutate_if(is.character,as.factor)
-summary(train_data_trnsfrmd)
 ```
 
 We are now all set to fit the logistic regression to our train data and extract parameters for retained features of the data,
 ```{r message=FALSE, warning=FALSE}
 model <- glm(good_bad ~.,family=binomial(link='logit'),data=train_data_trnsfrmd)
-summary(model)
 ```
 
-## Validation/Performance measurement
+# Validation/Performance measurement
 ```{r load pre_readme, include = FALSE}
 library(ROCR)
 predicted <- plogis(predict(model, test_data_trnsfrmd))  # predicted
@@ -926,16 +920,19 @@ After cleaning and processing data, following are performance metrics of logisti
 library(InformationValue)
 ```
 
+## Misclssification Error
 Misclassification Error is `r misClassError(test_data_trnsfrmd$good_bad, predicted, threshold = 0.8)`
 
+## AUROC
 AUROC is
 ```{r}
 plotROC(test_data_trnsfrmd$good_bad, predicted)
 ```
 
+## Gini an Kolmogorov-Smirnov coefficients
 Gini Index, `r gini_coef` and Kolmogorov-Smirnov is `r ks_coeff`.
 
-## Score card calculation
+# Score card calculation
 Before we can calculate credit score card, we have to prepare model coefficients table as follows,
 ```{r message=FALSE, warning=FALSE}
 test <- dummy.coef(model)
@@ -958,10 +955,6 @@ col_names <- colnames(train_data_trnsfrmd)
 
 We are ready to calculate score card now,
 ```{r message=FALSE, warning=FALSE}
-score_card_df %>%
-  group_by(col) %>%
-  summarise(max(regression_coeff))
-
 max_sum_coef <- sum(pull(score_card_df %>%
                            group_by(col) %>%
                            summarise(regression_coeff = max(regression_coeff)) %>%
@@ -1013,9 +1006,9 @@ test_data_trnsfrmd <- test_data_trnsfrmd %>%
 
 
 score_card_final <- score_card_df %>%
-  select(col, category, score_preliminary)
+  select(col, category, regression_coeff, score_preliminary)
 
-colnames(score_card_final) <- c('Feature', 'Category', 'Credit Score')
+colnames(score_card_final) <- c('Feature', 'Category', 'Regression Coefficient', 'Credit Score')
 ```
 
 So following table is score card:
@@ -1023,20 +1016,14 @@ So following table is score card:
 kable(score_card_final, caption='Score Card')
 ```
 
-## Monitoring
+# Monitoring
 For monitoring we first start with transforming new data the same as we did for train and test data.
-# Pre-process new data
+
+## Pre-process new data
 ```{r message=FALSE, warning=FALSE}
 new_data <- fread("C:\\Asus WebStorage\\nitin.7785@gmail.com\\MySyncFolder\\Credit_Risk_Modelling\\Credit-Risk-Model\\publish_git\\data\\lc_2016_2017.csv")
-sapply(new_data, class)
 
 # General Preprocessing
-# preprocessing continuous variables
-# display unique values of a column
-distinct(new_data, emp_length)
-distinct(new_data, term)
-
-distinct(new_data, emp_length)
 # remove columns with all NA's
 new_data <- new_data %>%
   select_if(~sum(!is.na(.)) > 0)
@@ -1049,21 +1036,15 @@ new_data$emp_length_int <- map_chr(new_data$emp_length_int, numextract) %>%
   as.double() %>%
   replace_na(0)
 
-
-distinct(new_data, emp_length_int)
-
 # convert term_int column to integers
 new_data <- new_data %>%
   mutate(term_int = ifelse(term == '36 months', 36, 60))
 distinct(new_data, term_int)
 
-new_data1 <- copy(new_data)
-
 # convert mths_since_earliest_cr_line and mths_since_earliest_cr_line, to date and calculate 
 # months upto 01-12-2017
 new_data$mths_since_earliest_cr_line <- interval(parse_date_time(new_data$earliest_cr_line, "by"), 
                                                   as.POSIXct("2017-12-01"))%/% months(1)
-summary(new_data$mths_since_earliest_cr_line)
 
 new_data$mths_since_earliest_cr_line <- ifelse(new_data$mths_since_earliest_cr_line < 0, 
                                                 max(new_data$mths_since_earliest_cr_line, na.rm = TRUE), 
@@ -1072,7 +1053,6 @@ new_data$mths_since_earliest_cr_line <- ifelse(new_data$mths_since_earliest_cr_l
 
 new_data$mths_since_issue_d <- interval(parse_date_time(new_data$issue_d, "by"), 
                                          as.POSIXct("2017-12-01"))%/% months(1)
-summary(new_data$mths_since_issue_d)
 
 # preprocessing discrete variables
 # since we do not need to create dummy variables for linear regression, we simply note down the discrete variable names
@@ -1081,7 +1061,6 @@ summary(new_data$mths_since_issue_d)
 
 # check for missing values and clean
 data_summary = summary(new_data)
-sapply(new_data, function(y) sum(length(which(is.na(y)))))
 
 # 'Total revolving high credit/ credit limit', so it makes sense that the missing values are equal to funded_amnt.
 new_data$total_rev_hi_lim <- ifelse(is.na(new_data$total_rev_hi_lim), 
@@ -1124,20 +1103,15 @@ new_data <- new_data %>%
 # Data preparation
 # Dependent variable, good/bad (default) definition
 # check each loan_status frequency
-distinct(new_data, loan_status)
-new_data %>%
-  group_by(loan_status) %>%
-  summarise(n_distinct(id)/nrow(new_data))
 
 # create good_bad (default or not) column from loan_status and observe the frequency of good/bad news
 bad_status <- c('Charged Off', 'Default',
                 'Does not meet the credit policy. Status:Charged Off',
                 'Late (31-120 days)')
 new_data$good_bad <- ifelse(new_data$loan_status %in% bad_status, 0, 1)
-new_data %>% group_by(good_bad) %>% summarise(n_distinct(id)/nrow(new_data))
 ```
 
-# transform new data
+## Transform new data
 ```{r message=FALSE, warning=FALSE}
 new_data$grade_trnsfrmd <- new_data$grade
 
@@ -1333,6 +1307,8 @@ new_data_trnsfrmd <- new_data %>%
   select(ends_with(c('good_bad', 'trnsfrmd')))
 
 ```
+
+## Calculate frequency of categories
 Looking at the AUROC, we see that we have a model that predicts probability of default and credit score to an acceptable level of satisfaction. However, we need to remember that as the new data arrives our current model may grow out-of-date, as it has not been trained on new data which might be substantially different from the old data. In order to assess if we need to update our model, we need to quantify how different new data is from old data, on which model was trained. We do this by "Population Stability Index" (PSI) which tells us how much each feature of the new data is different from old data. To calculate PSI, we first compute proportion of each category in each feature from new and old data,
 ```{r message=FALSE, warning=FALSE}
 # categorizing credit scores
@@ -1385,13 +1361,37 @@ PSI_calc <- train_categories_freq %>%
          freq_new = ifelse(is.na(freq_new), 0, freq_new))
 ```
 
+## Population stability index
 Finally we can join new and old data categories frequencies and calculate PSI per feature,
 ```{r message=FALSE, warning=FALSE}
+freq_table <- PSI_calc <- PSI_calc %>%
+  mutate(contribution = ifelse(freq_new == 0 | freq_train == 0, 0,
+                               (freq_new-freq_train)*log(freq_new/freq_train)))
+
 PSI_calc <- PSI_calc %>%
   mutate(contribution = ifelse(freq_new == 0 | freq_train == 0, 0,
                                (freq_new-freq_train)*log(freq_new/freq_train))) %>%
   group_by(column_name) %>%
-  summarise(contribution = sum(contribution))
+  summarise(contribution = sum(contribution)) %>%
+  mutate(column_name = str_replace(column_name, "_trnsfrmd", ""))
+
+colnames(PSI_calc) <- c('Feature', 'PSI Contribution')
 
 kable(PSI_calc, caption='Population Stability Index Table')
 ```
+
+The rule of thumb for PSI's impact is:
+
+PSI value | Conclusion
+--------- | ----------
+PSI < 0.1 | No change. You can continue using existing model.
+PSI >=0.1 | but less than 0.2 - Slight change is required.
+PSI >=0.2 | Significant change is required. Ideally, you should not use this model any more.
+
+Based on this table, we conclude that `initial_list_status_trnsfrmd` with PSI contribution of 0.3466538 has changed subtantially. Hence, let us examine this closely to see what exactly has changed.
+```{r message=FALSE, warning=FALSE}
+kable(freq_table %>% filter(column_name == 'initial_list_status_trnsfrmd'), caption='Population Stability Index Table')
+```
+Notice the proportion of `w` and `f` are quite different for old and new data, but this represent the change in the strategy of the bank rather than change in the population. Hence, it is not a cause to change the model.
+
+The second variable that has relatively higher PSI contribution is `score_cat`, which is categorised score. This has a value of 0.1480015, meaning a slight change of model is needed, in order to apply model to the new data.
