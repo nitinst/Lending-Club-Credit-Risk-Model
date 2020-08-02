@@ -137,7 +137,8 @@ keep_columns <- c("id", "grade",
                   "acc_now_delinq", "total_rev_hi_lim",
                   "installment", "annual_inc",
                   "mths_since_last_delinq", "dti",
-                  "mths_since_last_record")
+                  "mths_since_last_record", "total_rec_prncp", 
+                  "total_rec_int", "total_rec_late_fee", "recoveries")
 loan_data <- loan_data %>%
   select(keep_columns)
 ```
@@ -1395,3 +1396,145 @@ kable(freq_table %>% filter(column_name == 'initial_list_status_trnsfrmd'), capt
 Notice the proportion of `w` and `f` are quite different for old and new data, but this represent the change in the strategy of the bank rather than change in the population. Hence, it is not a cause to change the model.
 
 The second variable that has relatively higher PSI contribution is `score_cat`, which is categorised score. This has a value of 0.1480015, meaning a slight change of model is needed, in order to apply model to the new data.
+
+# LGD Modelling
+
+## Preparing data and modelling LGD
+To calculate Expected loss of a loan portfolio we need 3 quantities, 1) Probability of Default, 2) Loss Given Default and 3) Exposure at Default. We have already calculated PD and now we can turn to calculating the other two, i.e., LGD and EAD.
+
+In order to calculate LGD and EAD we first have to filter on `loan_status`: 'Charged Off' and 'Does not meet the credit policy. Status:Charged Off', as these are the loans that have had enough time for recoveries to have been completed. We then calculate recovery rate and Credit Conversion Factor (CCF) for these loans, divide the data into train and test and fit the model. As LGD's can any value between 0 and 1, they are generally modeled using Beta Regression, instead of logistic regression used for PD.
+```{r message=FALSE, warning=FALSE}
+library(betareg)
+library(MLmetrics)
+# concatenate train and test data to get full default data
+full_data <- train_data %>%
+  bind_rows(test_data)
+
+# calculate recovery rate and ccf
+default_data <- full_data %>%
+  filter(loan_status %in% c('Charged Off','Does not meet the credit policy. Status:Charged Off')) %>%
+  mutate(mths_since_last_delinq = replace_na(mths_since_last_delinq, 0),
+         mths_since_last_record = replace_na(mths_since_last_record, 0),
+         recovery_rate = recoveries / funded_amnt) %>%
+  mutate(recovery_rate = ifelse(recovery_rate <= 0, 0.001,
+                                ifelse(recovery_rate >= 1, 0.999,
+                                       recovery_rate))) %>%
+  mutate(ccf = (funded_amnt - total_rec_prncp) / funded_amnt)
+
+# divide full default data into training and testing datasets.
+train_index <- createDataPartition(default_data$recovery_rate,p=0.8,list=FALSE)
+train_default <- default_data[train_index,]
+test_default <- default_data[-train_index,]
+
+# list of relevant fields and keep only these columns
+default_cols <- c('grade',
+                  'home_ownership',
+                  'verification_status',
+                  'purpose',
+                  'initial_list_status',
+                  'term_int',
+                  'emp_length_int',
+                  'mths_since_issue_d',
+                  'mths_since_earliest_cr_line',
+                  'funded_amnt',
+                  'int_rate',
+                  'installment',
+                  'annual_inc',
+                  'dti',
+                  'delinq_2yrs',
+                  'inq_last_6mths',
+                  'mths_since_last_delinq',
+                  'mths_since_last_record',
+                  'open_acc',
+                  'pub_rec',
+                  'total_acc',
+                  'acc_now_delinq',
+                  'total_rev_hi_lim',
+                  'recovery_rate')
+
+# convert character columns into factors.
+lgd_input_train <- train_default %>%
+  select(all_of(default_cols)) %>%
+  mutate_if(is.character,as.factor)
+
+lgd_input_test <- test_default %>%
+  select(all_of(default_cols)) %>%
+  mutate_if(is.character,as.factor)
+
+# Beta regression
+lgd_model <- betareg(recovery_rate ~., data=lgd_input_train)
+```
+
+## Checking model for over/underfitting
+After fitting our model with Beta regression, we predict LGD on both training and testing data using coefficients obtained from fitting our data. The reason we are predicting LGD for training set also has to do with checking if our model is over/underfitting the data. We calculate RMSE and MSE for both training and testing predictions vs actual numbers. If these quantities are close enough for training and testing predictions, this means that our model does not suffer from over/underfitting.
+
+```{r message=FALSE, warning=FALSE}
+predict_test <- predict(lgd_model, lgd_input_test, type = 'response')
+predict_train <- predict(lgd_model, lgd_input_train, type = 'response')
+
+print(paste0("MSE for testing dataset is: ", MSE(predict_test, lgd_input_test$recovery_rate)))
+print(paste0("RMSE for testing dataset is: ", RMSE(predict_test, lgd_input_test$recovery_rate)))
+
+print(paste0("MSE for training dataset is: ", MSE(predict_train, lgd_input_train$recovery_rate)))
+print(paste0("RMSE for training dataset is: ", RMSE(predict_train, lgd_input_train$recovery_rate)))
+```
+As we can see that MSE and RMSE for testing and training set are quite close to each other, our model has done as good fitting as possible.
+
+# EAD modelling
+
+## Preparing data and modelling EAD
+The majority of steps for modelling EAD are same as LGD with two key differences:
+1) The target variable to fit is `ccf` instead of `recovery_rate`.
+2) To model EAD we use Generalised Linear Regression instead of Beta regression as done for LGD.
+
+```{r message=FALSE, warning=FALSE}
+default_cols <- c('grade',
+                  'home_ownership',
+                  'verification_status',
+                  'purpose',
+                  'initial_list_status',
+                  'term_int',
+                  'emp_length_int',
+                  'mths_since_issue_d',
+                  'mths_since_earliest_cr_line',
+                  'funded_amnt',
+                  'int_rate',
+                  'installment',
+                  'annual_inc',
+                  'dti',
+                  'delinq_2yrs',
+                  'inq_last_6mths',
+                  'mths_since_last_delinq',
+                  'mths_since_last_record',
+                  'open_acc',
+                  'pub_rec',
+                  'total_acc',
+                  'acc_now_delinq',
+                  'total_rev_hi_lim',
+                  'ccf')
+ead_input_train <- train_default %>%
+  select(all_of(default_cols)) %>%
+  mutate_if(is.character,as.factor)
+
+ead_input_test <- test_default %>%
+  select(all_of(default_cols)) %>%
+  mutate_if(is.character,as.factor)
+
+sapply(ead_input_train, function(y) sum(length(which(is.na(y)))))
+
+# ead_model <- glm(ccf ~., family = binomial(link='logit'), data=ead_input_train)
+ead_model <- glm(ccf ~., data=ead_input_train)
+```
+
+## Checking model for over/underfitting
+Again we check our model for over/underfitting bias.
+```{r message=FALSE, warning=FALSE}
+predict_test <- predict(ead_model, ead_input_test, type = 'response')
+predict_train <- predict(ead_model, ead_input_train, type = 'response')
+
+print(paste0("MSE for testing dataset is: ", MSE(predict_test, ead_input_test$ccf)))
+print(paste0("RMSE for testing dataset is: ", RMSE(predict_test, ead_input_test$ccf)))
+
+print(paste0("MSE for training dataset is: ", MSE(predict_train, ead_input_train$ccf)))
+print(paste0("RMSE for training dataset is: ", RMSE(predict_train, ead_input_train$ccf)))
+```
